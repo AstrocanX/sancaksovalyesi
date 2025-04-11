@@ -38,6 +38,10 @@ async function hasPermission(interaction) {
     return true;
 }
 
+function checkHierarchy(interaction, member) {
+    return interaction.member.roles.highest.position > member.roles.highest.position;
+}
+
 module.exports = [
     {
         __type__: 1,
@@ -148,6 +152,10 @@ module.exports = [
             const user = interaction.options.getUser('kullanıcı');
             const member = await interaction.guild.members.fetch(user.id);
 
+            if (!checkHierarchy(interaction, member)) {
+                return interaction.reply({ content: '❌ Kendinden yüksek yetkideki birine işlem yapamazsın.', ephemeral: true });
+            }
+
             if (!member.moderatable) return interaction.reply({ content: 'Bu kullanıcıya işlem yapamam.', ephemeral: true });
 
             await member.timeout(null);
@@ -182,11 +190,18 @@ module.exports = [
             const id = interaction.options.getString('kullanıcı_id');
 
             try {
+                const user = await client.users.fetch(id);
+                const member = await interaction.guild.members.fetch(id).catch(() => null);
+                
+                // Hiyerarşi kontrolü
+                if (member && !checkHierarchy(interaction, member)) {
+                    return interaction.reply({ content: '❌ Kendinden yüksek yetkideki birine işlem yapamazsın.', ephemeral: true });
+                }
+
                 await interaction.guild.members.unban(id);
                 await interaction.reply(`${id} adlı kişinin yasağı kaldırıldı.`);
 
                 try {
-                    const user = await client.users.fetch(id);
                     await user.send({
                         embeds: [
                             new EmbedBuilder()
